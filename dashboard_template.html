@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Limpieza de amigos</title>
+<style>
+:root{
+  --bg:#f6f5f2;--surface:#fff;--border:#e4e1da;--text:#1d1c1a;--muted:#6b6861;
+  --accent:#d13639;--accent-soft:#fbe9e9;--ok:#2f7d5b;--ok-soft:#e5f3ec;--warn:#9a6a00;--warn-soft:#fbf1d9;
+  --row-hover:#faf9f6;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#141414;--surface:#1d1d1d;--border:#2e2e2e;--text:#ecebe8;--muted:#9a9891;
+  --accent:#ff5a5f;--accent-soft:#3a1d1e;--ok:#5cc79a;--ok-soft:#173027;--warn:#e7b84a;--warn-soft:#33290f;
+  --row-hover:#232323;
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:28px 16px 60px}
+h1{font-size:22px;margin:0 0 4px;letter-spacing:-.01em}
+.sub{color:var(--muted);margin:0 0 22px}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;cursor:pointer;text-align:left;color:inherit;font:inherit}
+.stat[aria-pressed="true"]{outline:2px solid var(--text);outline-offset:-2px}
+.stat b{display:block;font-size:26px;font-variant-numeric:tabular-nums;line-height:1.1}
+.stat span{color:var(--muted);font-size:13px}
+.stat.c b{color:var(--accent)}.stat.p b{color:var(--warn)}.stat.a b{color:var(--ok)}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px}
+.bar input[type=search]{flex:1;min-width:200px;padding:9px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font:inherit}
+button.btn{padding:9px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font:inherit;cursor:pointer}
+button.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+button.btn:disabled{opacity:.5;cursor:not-allowed}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:auto}
+table{width:100%;border-collapse:collapse;min-width:720px}
+th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600;position:sticky;top:0;background:var(--surface);user-select:none}
+th.s{cursor:pointer}th.s:hover{color:var(--text)}
+th .arr{opacity:.8;margin-left:4px}
+tbody tr:hover{background:var(--row-hover)}
+tbody tr:last-child td{border-bottom:0}
+td.num{font-variant-numeric:tabular-nums}
+td.note{white-space:normal;color:var(--muted);max-width:260px}
+.id small{color:var(--muted)}
+.pill{display:inline-block;padding:2px 8px;border-radius:99px;font-size:12px;font-weight:600}
+.pill.candidato{background:var(--accent-soft);color:var(--accent)}
+.pill.protegido{background:var(--warn-soft);color:var(--warn)}
+.pill.activo{background:var(--ok-soft);color:var(--ok)}
+.pill.conservado{background:var(--row-hover);color:var(--text);border:1px solid var(--border)}
+.stat.k b{color:var(--text)}
+.rel{color:var(--muted);font-size:12px}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ok);margin-right:6px;vertical-align:middle}
+input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}
+.empty{padding:30px;text-align:center;color:var(--muted)}
+.help{margin-top:16px;color:var(--muted);font-size:13px}
+.help code{background:var(--surface);border:1px solid var(--border);padding:1px 5px;border-radius:4px;font-size:12px}
+@media (max-width:640px){.stats{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Limpieza de amigos de Riot</h1>
+  <p class="sub">Generado el __GENERATED__ · ordenado de la conexión más antigua a la más reciente</p>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="bar">
+    <input type="search" id="q" placeholder="Buscar por Riot ID, nota, región…">
+    <button class="btn" id="selAll">Marcar visibles</button>
+    <button class="btn" id="selNone">Desmarcar visibles</button>
+    <button class="btn primary" id="export">Exportar selección (0)</button>
+  </div>
+
+  <div class="card">
+    <table>
+      <thead><tr>
+        <th style="width:36px"></th>
+        <th class="s" data-k="id">Riot ID</th>
+        <th class="s" data-k="ts">Última conexión</th>
+        <th class="s" data-k="status">Estado</th>
+        <th class="s" data-k="group">Grupo</th>
+        <th class="s" data-k="region">Región</th>
+        <th>Nota</th>
+      </tr></thead>
+      <tbody id="tb"></tbody>
+    </table>
+  </div>
+
+  <p class="help">⚠ “Sin dato” significa que Riot no devuelve su última conexión: puede ser una cuenta abandonada <b>o alguien que oculta su estado</b>.
+  Los que aparecen en tus logs de VALORANT de los últimos días se marcan como activos, pero desmarca a cualquiera con quien hayas jugado.
+  Los marcados se exportan como <code>candidatos.csv</code>; luego ejecuta
+  <code>python riot_friends_cleaner.py --apply --csv "ruta\candidatos.csv"</code>.</p>
+</div>
+
+<script>
+const DATA = __DATA__;
+const LABEL = {candidato:"Candidatos a eliminar", conservado:"Conservados por ti", protegido:"Protegidos (nota / grupo)", activo:"Activos", todos:"Todos"};
+const sel = new Set(DATA.filter(r => r.status === "candidato").map(r => r.puuid));
+let filter = "candidato", sortK = "ts", sortDir = 1, q = "";
+
+const fmtDate = ts => ts ? new Date(ts).toLocaleDateString("es", {year:"numeric", month:"short", day:"numeric"}) : "Sin dato";
+function rel(ts){
+  if(!ts) return "";
+  const d = (Date.now() - ts) / 864e5;
+  if(d < 1) return "hoy";
+  if(d < 2) return "ayer";
+  if(d < 31) return `hace ${Math.floor(d)} días`;
+  if(d < 365) { const m = Math.floor(d / 30.44); return `hace ${m} ${m === 1 ? "mes" : "meses"}`; }
+  const y = Math.floor(d / 365.25); return `hace ${y} ${y === 1 ? "año" : "años"}`;
+}
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const groupName = g => g === "**Default" ? "General" : g;
+
+function visible(){
+  const ql = q.toLowerCase();
+  return DATA.filter(r => (filter === "todos" || r.status === filter) &&
+      (!ql || [r.id, r.note, r.region, groupName(r.group)].join(" ").toLowerCase().includes(ql)))
+    .sort((a, b) => {
+      let x = a[sortK], y = b[sortK];
+      if(sortK === "ts"){ x = x ?? -Infinity; y = y ?? -Infinity; }   // sin dato = más antiguo
+      else { x = String(x ?? "").toLowerCase(); y = String(y ?? "").toLowerCase(); }
+      return (x < y ? -1 : x > y ? 1 : 0) * sortDir;
+    });
+}
+
+function renderStats(){
+  const n = s => DATA.filter(r => r.status === s).length;
+  const items = [["todos", DATA.length, ""], ["candidato", n("candidato"), "c"], ["conservado", n("conservado"), "k"], ["protegido", n("protegido"), "p"], ["activo", n("activo"), "a"]];
+  document.getElementById("stats").innerHTML = items.map(([k, v, c]) =>
+    `<button class="stat ${c}" data-f="${k}" aria-pressed="${filter === k}"><b>${v}</b><span>${LABEL[k]}</span></button>`).join("");
+}
+
+function render(){
+  renderStats();
+  const rows = visible();
+  document.querySelectorAll("th.s").forEach(th => {
+    th.querySelector(".arr")?.remove();
+    if(th.dataset.k === sortK) th.insertAdjacentHTML("beforeend", `<span class="arr">${sortDir > 0 ? "↑" : "↓"}</span>`);
+  });
+  document.getElementById("tb").innerHTML = rows.length ? rows.map(r => `
+    <tr>
+      <td><input type="checkbox" data-p="${r.puuid}" ${sel.has(r.puuid) ? "checked" : ""} aria-label="Eliminar ${esc(r.id)}"></td>
+      <td class="id">${r.online ? '<span class="dot" title="Conectado ahora"></span>' : ""}${esc(r.id.split("#")[0])}<small>#${esc(r.id.split("#").slice(1).join("#"))}</small></td>
+      <td class="num">${r.seen && !r.ts ? 'Visto en VALORANT <span class="rel">últimos días</span>' : `${fmtDate(r.ts)} <span class="rel">${rel(r.ts)}</span>`}</td>
+      <td><span class="pill ${r.status}">${r.status}</span></td>
+      <td>${esc(groupName(r.group))}</td>
+      <td>${esc((r.region || "").toUpperCase())}</td>
+      <td class="note">${esc(r.note)}</td>
+    </tr>`).join("") : `<tr><td colspan="7" class="empty">Sin resultados</td></tr>`;
+  const b = document.getElementById("export");
+  b.textContent = `Exportar selección (${sel.size})`; b.disabled = !sel.size;
+}
+
+document.getElementById("stats").addEventListener("click", e => {
+  const b = e.target.closest("[data-f]"); if(b){ filter = b.dataset.f; render(); }
+});
+document.querySelector("thead").addEventListener("click", e => {
+  const th = e.target.closest("th.s"); if(!th) return;
+  if(sortK === th.dataset.k) sortDir *= -1; else { sortK = th.dataset.k; sortDir = 1; }
+  render();
+});
+document.getElementById("tb").addEventListener("change", e => {
+  const p = e.target.dataset.p; if(!p) return;
+  e.target.checked ? sel.add(p) : sel.delete(p); render();
+});
+document.getElementById("q").addEventListener("input", e => { q = e.target.value; render(); });
+document.getElementById("selAll").onclick = () => { visible().forEach(r => sel.add(r.puuid)); render(); };
+document.getElementById("selNone").onclick = () => { visible().forEach(r => sel.delete(r.puuid)); render(); };
+document.getElementById("export").onclick = () => {
+  const cell = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const lines = [["eliminar","riot_id","ultima_conexion","grupo","region","nota","puuid"].join(",")];
+  DATA.filter(r => sel.has(r.puuid)).sort((a, b) => (a.ts ?? 0) - (b.ts ?? 0)).forEach(r =>
+    lines.push(["si", r.id, r.ts ? new Date(r.ts).toISOString().slice(0, 10) : "sin dato", r.group, r.region, r.note, r.puuid].map(cell).join(",")));
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob(["﻿" + lines.join("\r\n")], {type: "text/csv"}));
+  a.download = "candidatos.csv"; a.click(); URL.revokeObjectURL(a.href);
+};
+render();
+</script>
+</body>
+</html>

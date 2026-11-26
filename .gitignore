@@ -1,0 +1,9 @@
+# Entorno
+.venv/
+__pycache__/
+*.pyc
+
+# Datos personales generados (Riot IDs, PUUIDs y notas de tus amigos): nunca subir
+backups/
+candidatos*.csv
+dashboard.html
